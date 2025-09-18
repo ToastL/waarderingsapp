@@ -40,12 +40,15 @@ const filteredStudents = computed(() =>
 );
 
 // Function to handle student selection
-const selectStudent = (student) => {
-  selectedStudent.value = student;
-  reviewSubmitted.value = false;
-  // Reset ratings and review text on new selection
-  categories.forEach((cat) => (ratings.value[cat] = 0));
-  reviewText.value = "";
+const selectStudent = async (student) => {
+  // Navigate to the review page with student data using router
+  await navigateTo({
+    path: "/review",
+    query: {
+      studentId: String(student.id),
+      studentName: student.name,
+    },
+  });
 };
 
 // Function to handle review submission
@@ -96,8 +99,6 @@ const submitReview = () => {
         </div>
       </div>
     </div>
-
-    <!-- Step 2: Review Form -->
     <!-- Step 2: Review Form -->
     <div v-else-if="!reviewSubmitted" class="fade-in">
       <!-- <button
