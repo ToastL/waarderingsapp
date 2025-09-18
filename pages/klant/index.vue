@@ -2,13 +2,48 @@
 import { ref, computed } from "vue";
 
 const students = [
-  { id: 1, name: "Jorden Gielen", image: "/assets/img/bureau_logo.png" },
-  { id: 2, name: "Student 2", image: "/assets/img/bureau_logo.png" },
-  { id: 3, name: "Student 3", image: "/assets/img/bureau_logo.png" },
-  { id: 4, name: "Student 4", image: "/assets/img/bureau_logo.png" },
-  { id: 5, name: "Student 5", image: "/assets/img/bureau_logo.png" },
-  { id: 6, name: "Student 6", image: "/assets/img/bureau_logo.png" },
-  { id: 7, name: "Student 7", image: "/assets/img/bureau_logo.png" },
+  {
+    id: 1,
+    name: "Jorden Gielen",
+    studentNumber: "2024001",
+    image: "/assets/img/bureau_logo.png",
+  },
+  {
+    id: 2,
+    name: "Emma Janssen",
+    studentNumber: "2024002",
+    image: "/assets/img/bureau_logo.png",
+  },
+  {
+    id: 3,
+    name: "Lars van Berg",
+    studentNumber: "2024003",
+    image: "/assets/img/bureau_logo.png",
+  },
+  {
+    id: 4,
+    name: "Sophie Bakker",
+    studentNumber: "2024004",
+    image: "/assets/img/bureau_logo.png",
+  },
+  {
+    id: 5,
+    name: "Tim de Vries",
+    studentNumber: "2024005",
+    image: "/assets/img/bureau_logo.png",
+  },
+  {
+    id: 6,
+    name: "Lisa Meijer",
+    studentNumber: "2024006",
+    image: "/assets/img/bureau_logo.png",
+  },
+  {
+    id: 7,
+    name: "Mike Smit",
+    studentNumber: "2024007",
+    image: "/assets/img/bureau_logo.png",
+  },
 ];
 
 const selectedStudent = ref(null);
@@ -32,11 +67,15 @@ const ratings = ref({
 });
 const reviewText = ref("");
 
-// Filtered students based on search query
+// Filtered students based on search query (searches both name and student number)
 const filteredStudents = computed(() =>
-  students.filter((student) =>
-    student.name.toLowerCase().includes(searchQuery.value.toLowerCase())
-  )
+  students.filter((student) => {
+    const query = searchQuery.value.toLowerCase();
+    return (
+      student.name.toLowerCase().includes(query) ||
+      student.studentNumber.toLowerCase().includes(query)
+    );
+  })
 );
 
 // Function to handle student selection
@@ -97,7 +136,7 @@ const submitReview = () => {
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="Typ een naam..."
+              placeholder="Typ een naam of studentnummer..."
               class="search-input"
             />
           </div>
@@ -112,6 +151,7 @@ const submitReview = () => {
             >
               <img :src="student.image" alt="Student" class="student-image" />
               <p class="student-name">{{ student.name }}</p>
+              <p class="student-number">{{ student.studentNumber }}</p>
             </div>
           </div>
         </div>
@@ -336,6 +376,14 @@ const submitReview = () => {
   font-size: 14px;
   font-weight: 500;
   color: #374151;
+  margin: 0 0 4px 0;
+  line-height: 1.2;
+}
+
+.student-number {
+  font-size: 12px;
+  font-weight: 400;
+  color: #6b7280;
   margin: 0;
   line-height: 1.2;
 }
@@ -381,6 +429,10 @@ const submitReview = () => {
 
   .student-name {
     font-size: 12px;
+  }
+
+  .student-number {
+    font-size: 10px;
   }
 }
 </style>
