@@ -59,43 +59,61 @@ const submitReview = () => {
 </script>
 
 <template>
-  <div class="review-flow">
-    <button
-      class="text-white text-3xl mb-4 focus:outline-none hover:text-gray-200 transition"
-      @click="selectedStudent = null"
-      aria-label="Terug"
-      style="background: none; border: none; padding: 0"
-    >
-      ←
-    </button>
-    <!-- Step 1: Reviewer Dashboard -->
+  <div class="review-page">
+    <!-- Step 1: Student Selection -->
     <div v-if="!selectedStudent" class="fade-in">
-      <h2 class="text-center text-2xl font-bold text-white bg-orange-500 py-4">
-        REVIEW FORUM
-      </h2>
-      <div class="search-bar mt-4">
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Zoek naar student"
-          class="w-full p-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-        />
-      </div>
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6">
-        <div
-          v-for="student in filteredStudents"
-          :key="student.id"
-          class="student-card"
-          @click="selectStudent(student)"
-        >
-          <img
-            :src="student.image"
-            alt="Student"
-            class="rounded-full w-24 h-24 mx-auto shadow-lg"
-          />
-          <p class="text-center mt-2 font-medium text-gray-700">
-            {{ student.name }}
-          </p>
+      <!-- Header -->
+      <header class="review-header">
+        <button @click="navigateTo('/')" class="back-button" aria-label="Terug">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M15 18L9 12L15 6"
+              stroke="white"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <h1 class="header-title">REVIEW FORUM</h1>
+        <div class="header-spacer"></div>
+      </header>
+
+      <!-- Main Content -->
+      <div class="review-content">
+        <!-- Student Selection Form -->
+        <div class="student-selection-form">
+          <h2 class="form-question">Selecteer een student om te beoordelen</h2>
+
+          <!-- Search Bar -->
+          <div class="search-section">
+            <label class="search-label">Zoek naar student</label>
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Typ een naam..."
+              class="search-input"
+            />
+          </div>
+
+          <!-- Student Grid -->
+          <div class="student-grid">
+            <div
+              v-for="student in filteredStudents"
+              :key="student.id"
+              class="student-card"
+              @click="selectStudent(student)"
+            >
+              <img :src="student.image" alt="Student" class="student-image" />
+              <p class="student-name">{{ student.name }}</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -194,80 +212,132 @@ const submitReview = () => {
 </template>
 
 <style scoped>
-.review-flow {
-  padding: 16px;
-  max-width: 600px;
-  margin: 0 auto;
-  background: url("/assets/img/docent_preload.png") no-repeat center center;
-  background-size: cover;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 12px;
+.review-page {
   min-height: 100vh;
-  box-sizing: border-box;
-  /* Prevent horizontal scroll */
-  overflow-x: hidden;
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .review-header {
-  border-top-left-radius: 12px;
-  border-top-right-radius: 12px;
+  display: flex;
   align-items: center;
-  min-height: 56px;
+  padding: 16px 20px;
+  background: rgba(0, 0, 0, 0.1);
 }
 
-.search-bar input {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
+.back-button {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 8px;
   border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.back-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.header-title {
+  flex: 1;
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: white;
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.header-spacer {
+  width: 40px;
+}
+
+.review-content {
+  padding: 24px 20px;
+}
+
+.student-selection-form {
+  background: white;
+  border-radius: 12px;
+  padding: 24px 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.form-question {
+  font-size: 16px;
+  color: #374151;
+  margin: 0 0 32px 0;
+  font-weight: 500;
+  text-align: center;
+}
+
+.search-section {
+  margin-bottom: 32px;
+}
+
+.search-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 12px;
+}
+
+.search-input {
+  width: 100%;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+.student-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
 }
 
 .student-card {
   cursor: pointer;
   text-align: center;
-  border: 1px solid #ddd;
-  padding: 12px;
+  border: 1px solid #e5e7eb;
+  padding: 16px 12px;
   border-radius: 12px;
-  transition: transform 0.3s, box-shadow 0.3s;
+  transition: all 0.2s ease;
   background-color: #fff;
 }
 
 .student-card:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  border-color: #f97316;
 }
 
-.rating-grid .stars .star {
-  margin-right: 4px;
-  transition: transform 0.2s;
-}
-
-.star {
-  margin-right: 4px;
-  color: #fbbf24; /* Tailwind yellow-400 */
-  cursor: pointer;
-}
-.star-empty {
-  color: #e5e7eb; /* Tailwind gray-200 */
-}
-.star-filled {
-  color: #fbbf24; /* Tailwind yellow-400 */
-}
-.star:last-child {
-  margin-right: 0;
-}
-
-textarea {
-  resize: none;
-}
-
-button {
-  width: 100%;
-}
-
-.confirmation img {
+.student-image {
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
+  margin: 0 auto 12px auto;
+  display: block;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.student-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin: 0;
+  line-height: 1.2;
 }
 
 .fade-in {
@@ -285,26 +355,32 @@ button {
   }
 }
 
-.fab {
-  position: fixed;
-  bottom: 16px;
-  right: 16px;
-  width: 56px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  z-index: 10;
-}
-
-@media (max-width: 640px) {
-  .grid {
-    grid-template-columns: repeat(2, 1fr);
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+  .review-content {
+    padding: 20px 16px;
   }
 
-  .student-card {
-    padding: 8px;
+  .student-selection-form {
+    padding: 20px 16px;
+  }
+
+  .student-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .form-question {
+    font-size: 14px;
+  }
+
+  .student-image {
+    width: 50px;
+    height: 50px;
+  }
+
+  .student-name {
+    font-size: 12px;
   }
 }
 </style>
