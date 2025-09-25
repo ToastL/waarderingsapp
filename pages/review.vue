@@ -91,6 +91,30 @@ const isReviewSubmitted = computed(() => {
   return storedData?.submitted || false;
 });
 
+// Validation computed properties
+const areAllRatingsSelected = computed(() => {
+  return categories.every((category) => ratings.value[category] > 0);
+});
+
+const isReviewTextValid = computed(() => {
+  return reviewText.value.trim().length > 0;
+});
+
+const isFormValid = computed(() => {
+  return areAllRatingsSelected.value && isReviewTextValid.value;
+});
+
+const validationErrors = computed(() => {
+  const errors = [];
+  if (!areAllRatingsSelected.value) {
+    errors.push("Gelieve alle categorieën te beoordelen");
+  }
+  if (!isReviewTextValid.value) {
+    errors.push("Gelieve een bericht achter te laten");
+  }
+  return errors;
+});
+
 // Watch for route changes to reinitialize data if student changes
 watch(
   () => route.query.studentId,
@@ -128,6 +152,12 @@ watch(reviewText, (newText) => {
 
 // Function to handle form submission
 const submitReview = () => {
+  // Prevent submission if form is invalid or already submitted
+  if (!isFormValid.value || isReviewSubmitted.value) {
+    console.warn("Cannot submit: Form is invalid or already submitted");
+    return;
+  }
+
   // Save final data with submission timestamp
   const submissionData = {
     ratings: ratings.value,
@@ -236,13 +266,42 @@ const closeModal = () => {
           <textarea
             v-model="reviewText"
             class="comment-textarea"
+            :class="{
+              'comment-textarea--error':
+                !isReviewTextValid && reviewText.length === 0,
+            }"
             rows="6"
             placeholder=""
           />
         </div>
 
+        <!-- Validation Errors -->
+        <div
+          v-if="validationErrors.length > 0 && !isReviewSubmitted"
+          class="validation-errors"
+        >
+          <div
+            v-for="error in validationErrors"
+            :key="error"
+            class="validation-error"
+          >
+            <span class="error-icon">⚠</span>
+            <span class="error-text">{{ error }}</span>
+          </div>
+        </div>
+
         <!-- Submit Button -->
-        <button @click="submitReview" class="submit-button">
+        <button
+          @click="submitReview"
+          :disabled="!isFormValid || isReviewSubmitted"
+          :class="[
+            'submit-button',
+            { 'submit-button--disabled': !isFormValid || isReviewSubmitted },
+          ]"
+          :title="
+            !isFormValid ? 'Vul alle velden in om te verzenden' : 'Verzenden'
+          "
+        >
           <svg
             width="24"
             height="24"
@@ -479,6 +538,46 @@ const closeModal = () => {
   box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
 }
 
+.comment-textarea--error {
+  border-color: #ef4444;
+}
+
+.comment-textarea--error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.validation-errors {
+  margin-bottom: 20px;
+}
+
+.validation-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.validation-error:last-child {
+  margin-bottom: 0;
+}
+
+.error-icon {
+  color: #ef4444;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.error-text {
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 500;
+}
+
 .submit-button {
   position: absolute;
   bottom: -28px;
@@ -503,6 +602,17 @@ const closeModal = () => {
 
 .submit-button:active {
   transform: scale(0.95);
+}
+
+.submit-button--disabled {
+  background: #9ca3af !important;
+  cursor: not-allowed !important;
+  box-shadow: 0 2px 8px rgba(156, 163, 175, 0.3) !important;
+}
+
+.submit-button--disabled:hover {
+  transform: none !important;
+  background: #9ca3af !important;
 }
 
 /* Modal Styles */

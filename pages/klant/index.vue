@@ -159,14 +159,6 @@ const submitReview = () => {
     </div>
     <!-- Step 2: Review Form -->
     <div v-else-if="!reviewSubmitted" class="fade-in">
-      <!-- <button
-        class="text-white text-3xl mb-4 focus:outline-none hover:text-gray-200 transition"
-        @click="selectedStudent = null"
-        aria-label="Terug"
-        style="background: none; border: none; padding: 0"
-      >
-        ←
-      </button> -->
       <div
         class="review-header flex items-center bg-orange-500 py-4 px-4 rounded-t-[12px]"
       >
