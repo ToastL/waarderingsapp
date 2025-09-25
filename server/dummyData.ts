@@ -1,11 +1,2 @@
-export const studenten: { [key: number]: { name: string } } = {
-  230043: {
-    name: "Etien den Ouden",
-  },
-  230076: {
-    name: "Mark Petrenko",
-  },
-  210348: {
-    name: "Jaiden",
-  },
-};
+// This file is deprecated - student data is now managed in the database
+// See server/db/init.sql for the database schema and sample data

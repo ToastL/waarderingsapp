@@ -1,33 +1,26 @@
 <script setup>
-import { getSkills, getStudent } from "~/assets/js/student";
 import DocentForm from "~/components/DocentForm.vue";
 import NumberInput from "~/components/NumberInput.vue";
 import PencilIcon from "~/components/icons/PencilIcon.vue";
 
-const studenten = reactive([]);
+const {
+  students,
+  loading,
+  error,
+  fetchStudents,
+  fetchStudent,
+  fetchStudentSkills,
+  updateStudentSkill,
+} = useStudents();
 
-function clearStudent() {
-  while (studenten.length > 0) studenten.pop();
-}
-
-function getStudents() {
-  $fetch("/api/student").then((res) => {
-    clearStudent();
-
-    const numbers = Object.keys(res);
-
-    Object.values(res)
-      .map((student, i) => {
-        student.number = numbers[i];
-        return student;
-      })
-      .forEach((student) => {
-        studenten.push(student);
-      });
-  });
-}
-
-getStudents();
+// Fetch students when component mounts
+onMounted(async () => {
+  try {
+    await fetchStudents();
+  } catch (err) {
+    console.error("Error loading students:", err);
+  }
+});
 
 const ws = new WebSocket("ws://localhost:3000/_ws");
 
@@ -40,25 +33,43 @@ ws.addEventListener("message", (event) => {
 });
 
 const edit = ref(false);
+const editLoading = ref(false);
 let currStudent = reactive({
+  id: null,
   name: "",
   skills: [],
 });
 
-function setSkill(i, level) {
-  currStudent.skills[i].level = level;
+async function setSkill(i, level) {
+  if (!currStudent.id || !currStudent.skills[i]) return;
+
+  try {
+    await updateStudentSkill(currStudent.id, currStudent.skills[i].id, level);
+    currStudent.skills[i].level = level;
+    currStudent.skills[i].assessedAt = new Date().toISOString();
+  } catch (err) {
+    console.error("Error updating skill:", err);
+  }
 }
 
-async function editStudent(number) {
+async function editStudent(studentId) {
   edit.value = true;
+  editLoading.value = true;
 
-  const student = await getStudent(number);
-  const skills = await getSkills(number);
+  try {
+    const student = await fetchStudent(studentId);
+    const skills = await fetchStudentSkills(studentId);
 
-  currStudent.name = `${student.voornaam} ${student.achternaam}`;
-  currStudent.skills = skills;
+    currStudent.id = student.id;
+    currStudent.name = student.name;
+    currStudent.skills = skills;
 
-  ws.send({ type: "get", number });
+    ws.send({ type: "get", number: student.studentNumber });
+  } catch (err) {
+    console.error("Error loading student for editing:", err);
+  } finally {
+    editLoading.value = false;
+  }
 }
 </script>
 
@@ -107,23 +118,52 @@ async function editStudent(number) {
                 </div>
               </div>
 
-              <div class="students-grid">
+              <!-- Loading State -->
+              <div v-if="loading" class="text-center py-8">
                 <div
-                  v-for="student in studenten"
-                  :key="student.number"
+                  class="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto"
+                ></div>
+                <p class="mt-4 text-white">Students aan het laden...</p>
+              </div>
+
+              <!-- Error State -->
+              <div v-else-if="error" class="text-center py-8">
+                <div class="text-white text-4xl mb-4">⚠️</div>
+                <p class="text-white text-lg">{{ error }}</p>
+                <button
+                  @click="fetchStudents()"
+                  class="mt-4 px-4 py-2 bg-white text-orange-500 rounded-lg hover:bg-gray-100"
+                >
+                  Opnieuw proberen
+                </button>
+              </div>
+
+              <!-- Students Grid -->
+              <div v-else class="students-grid">
+                <div
+                  v-for="student in students"
+                  :key="student.id"
                   class="student-card"
                 >
                   <div class="student-info">
                     <h3 class="student-name">{{ student.name }}</h3>
-                    <p class="student-number">{{ student.number }}</p>
+                    <p class="student-number">{{ student.studentNumber }}</p>
                   </div>
                   <button
-                    @click="editStudent(student.number)"
+                    @click="editStudent(student.id)"
                     class="edit-button"
                     aria-label="Bewerk student"
                   >
                     <PencilIcon class="edit-icon" />
                   </button>
+                </div>
+
+                <!-- No students found -->
+                <div
+                  v-if="students.length === 0"
+                  class="col-span-full text-center py-8"
+                >
+                  <p class="text-white">Geen studenten gevonden</p>
                 </div>
               </div>
             </div>
@@ -152,18 +192,48 @@ async function editStudent(number) {
               </div>
 
               <div class="skills-container">
-                <div
-                  v-for="(skill, i) in currStudent.skills"
-                  :key="i"
-                  class="skill-item"
-                >
-                  <h3 class="skill-title">{{ skill.titel }}</h3>
-                  <div class="skill-input-wrapper">
-                    <NumberInput
-                      :length="10"
-                      :value="skill.level"
-                      @change="(e) => setSkill(i, e)"
-                    />
+                <!-- Loading State -->
+                <div v-if="editLoading" class="text-center py-8">
+                  <div
+                    class="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-500 mx-auto"
+                  ></div>
+                  <p class="mt-4 text-gray-600">Student gegevens laden...</p>
+                </div>
+
+                <!-- Skills List -->
+                <div v-else>
+                  <div
+                    v-for="(skill, i) in currStudent.skills"
+                    :key="skill.id"
+                    class="skill-item"
+                  >
+                    <h3 class="skill-title">{{ skill.name }}</h3>
+                    <p v-if="skill.description" class="skill-description">
+                      {{ skill.description }}
+                    </p>
+                    <div class="skill-input-wrapper">
+                      <NumberInput
+                        :length="10"
+                        :value="skill.level || 0"
+                        @change="(e) => setSkill(i, e)"
+                      />
+                    </div>
+                    <p v-if="skill.assessedAt" class="skill-assessed">
+                      Laatst beoordeeld:
+                      {{
+                        new Date(skill.assessedAt).toLocaleDateString("nl-NL")
+                      }}
+                    </p>
+                  </div>
+
+                  <!-- No skills found -->
+                  <div
+                    v-if="currStudent.skills.length === 0"
+                    class="text-center py-8"
+                  >
+                    <p class="text-gray-600">
+                      Geen vaardigheden gevonden voor deze student
+                    </p>
                   </div>
                 </div>
               </div>

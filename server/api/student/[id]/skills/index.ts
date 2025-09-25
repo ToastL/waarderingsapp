@@ -1,13 +1,101 @@
-import { createConnectionPool } from "~/server/pool"
+import { createConnectionPool } from "~/server/pool";
 
-export default defineEventHandler(async event => {
-    const { s: sessionKey }: { s: string } = getQuery(event)
+export default defineEventHandler(async (event) => {
+  const method = getMethod(event);
 
-    const studentNumber = Number(event.context.params?.id)
+  try {
+    const { s: sessionKey }: { s: string } = getQuery(event);
 
-    const db = await createConnectionPool(sessionKey)
+    if (!sessionKey) {
+      throw createError({
+        statusCode: 401,
+        statusMessage: "Session key required",
+      });
+    }
 
-    const skills = await db.query(`SELECT studenten_skills.id, studenten.leerlingnummer, skills.titel, studenten_skills.level FROM studenten_skills JOIN skills ON studenten_skills.skill_id=skills.id JOIN studenten ON studenten_skills.student_id=studenten.id WHERE leerlingnummer=${studentNumber}`)
+    const studentId = event.context.params?.id;
 
-    return skills.rows
-})
+    if (!studentId) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: "Student ID required",
+      });
+    }
+
+    const db = await createConnectionPool(sessionKey);
+
+    if (method === "GET") {
+      // Get all skills for a student
+      const result = await db.query(
+        `
+                SELECT 
+                    s.id,
+                    s.name,
+                    s.description,
+                    s.category,
+                    ss.level,
+                    ss.assessed_at
+                FROM skills s
+                LEFT JOIN student_skills ss ON s.id = ss.skill_id AND ss.student_id = $1
+                ORDER BY s.category, s.name
+            `,
+        [Number(studentId)]
+      );
+
+      return result.rows.map((skill) => ({
+        id: skill.id,
+        name: skill.name,
+        description: skill.description,
+        category: skill.category,
+        level: skill.level || null,
+        assessedAt: skill.assessed_at,
+      }));
+    }
+
+    if (method === "POST") {
+      // Update/set skill level for student
+      const body = await readBody(event);
+      const { skillId, level } = body;
+
+      if (!skillId || !level || level < 1 || level > 5) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: "Skill ID and level (1-5) are required",
+        });
+      }
+
+      const result = await db.query(
+        `
+                INSERT INTO student_skills (student_id, skill_id, level)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (student_id, skill_id)
+                DO UPDATE SET level = $3, assessed_at = CURRENT_TIMESTAMP
+                RETURNING id, assessed_at
+            `,
+        [Number(studentId), skillId, level]
+      );
+
+      return {
+        id: result.rows[0].id,
+        assessedAt: result.rows[0].assessed_at,
+        message: "Skill level updated successfully",
+      };
+    }
+
+    throw createError({
+      statusCode: 405,
+      statusMessage: "Method not allowed",
+    });
+  } catch (error: any) {
+    console.error("Error handling student skills:", error);
+
+    if (error?.statusCode) {
+      throw error;
+    }
+
+    throw createError({
+      statusCode: 500,
+      statusMessage: "Failed to handle student skills",
+    });
+  }
+});

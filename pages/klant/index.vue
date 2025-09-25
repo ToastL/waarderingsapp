@@ -1,54 +1,20 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 
-const students = [
-  {
-    id: 1,
-    name: "Jorden Gielen",
-    studentNumber: "2024001",
-    image: "/assets/img/bureau_logo.png",
-  },
-  {
-    id: 2,
-    name: "Emma Janssen",
-    studentNumber: "2024002",
-    image: "/assets/img/bureau_logo.png",
-  },
-  {
-    id: 3,
-    name: "Lars van Berg",
-    studentNumber: "2024003",
-    image: "/assets/img/bureau_logo.png",
-  },
-  {
-    id: 4,
-    name: "Sophie Bakker",
-    studentNumber: "2024004",
-    image: "/assets/img/bureau_logo.png",
-  },
-  {
-    id: 5,
-    name: "Tim de Vries",
-    studentNumber: "2024005",
-    image: "/assets/img/bureau_logo.png",
-  },
-  {
-    id: 6,
-    name: "Lisa Meijer",
-    studentNumber: "2024006",
-    image: "/assets/img/bureau_logo.png",
-  },
-  {
-    id: 7,
-    name: "Mike Smit",
-    studentNumber: "2024007",
-    image: "/assets/img/bureau_logo.png",
-  },
-];
-
+const { students, loading, error, fetchStudents, searchStudents } =
+  useStudents();
 const selectedStudent = ref(null);
 const reviewSubmitted = ref(false);
 const searchQuery = ref("");
+
+// Fetch students when component mounts
+onMounted(async () => {
+  try {
+    await fetchStudents();
+  } catch (err) {
+    console.error("Error loading students:", err);
+  }
+});
 
 // Add categories and ratings state
 const categories = [
@@ -68,15 +34,9 @@ const ratings = ref({
 const reviewText = ref("");
 
 // Filtered students based on search query (searches both name and student number)
-const filteredStudents = computed(() =>
-  students.filter((student) => {
-    const query = searchQuery.value.toLowerCase();
-    return (
-      student.name.toLowerCase().includes(query) ||
-      student.studentNumber.toLowerCase().includes(query)
-    );
-  })
-);
+const filteredStudents = computed(() => {
+  return searchStudents(searchQuery.value);
+});
 
 // Function to handle student selection
 const selectStudent = async (student) => {
@@ -85,7 +45,6 @@ const selectStudent = async (student) => {
     path: "/review",
     query: {
       studentId: String(student.id),
-      studentName: student.name,
     },
   });
 };
@@ -141,17 +100,52 @@ const submitReview = () => {
             />
           </div>
 
+          <!-- Loading State -->
+          <div v-if="loading" class="text-center py-8">
+            <div
+              class="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500 mx-auto"
+            ></div>
+            <p class="mt-4 text-gray-600">Students aan het laden...</p>
+          </div>
+
+          <!-- Error State -->
+          <div v-else-if="error" class="text-center py-8">
+            <div class="text-red-500 text-6xl mb-4">⚠️</div>
+            <p class="text-red-600 text-lg">{{ error }}</p>
+            <button
+              @click="fetchStudents()"
+              class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+            >
+              Opnieuw proberen
+            </button>
+          </div>
+
           <!-- Student Grid -->
-          <div class="student-grid">
+          <div v-else class="student-grid">
             <div
               v-for="student in filteredStudents"
               :key="student.id"
               class="student-card"
               @click="selectStudent(student)"
             >
-              <img :src="student.image" alt="Student" class="student-image" />
+              <img
+                :src="student.image || '/assets/img/bureau_logo.png'"
+                alt="Student"
+                class="student-image"
+              />
               <p class="student-name">{{ student.name }}</p>
               <p class="student-number">{{ student.studentNumber }}</p>
+            </div>
+
+            <!-- No students found -->
+            <div
+              v-if="filteredStudents.length === 0"
+              class="col-span-full text-center py-8"
+            >
+              <p class="text-gray-600">Geen studenten gevonden</p>
+              <p v-if="searchQuery" class="text-sm text-gray-500 mt-2">
+                Probeer een andere zoekopdracht
+              </p>
             </div>
           </div>
         </div>

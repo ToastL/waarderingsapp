@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import StudentForm from "~/components/StudentForm.vue";
-
-import { student } from "~/assets/js/student";
 import { Chart } from "chart.js/auto";
+
+const { fetchStudentSkills, fetchStudentReviews } = useStudents();
 
 const ws = new WebSocket("ws://localhost:3000/_ws");
 
 const chart = ref<HTMLCanvasElement>();
-const currStudent = ref();
+const currStudent = ref<any>(null);
+const studentSkills = ref<any[]>([]);
+const studentReviews = ref<any[]>([]);
+const loading = ref(false);
 
 let data = {
   labels: ["Stylen", "Front-end", "Back-end"],
@@ -41,18 +44,49 @@ watch(chart, (canvas) => {
   });
 });
 
-watch(student, async () => {
-  if (!student.number) return;
+// Handle student selection from form
+const handleStudentSelected = async (student: any) => {
+  currStudent.value = student;
+  loading.value = true;
 
-  currStudent.value = await student.getData();
-});
+  try {
+    // Fetch student skills and reviews
+    const [skills, reviews] = await Promise.all([
+      fetchStudentSkills(student.id),
+      fetchStudentReviews(student.id),
+    ]);
+
+    studentSkills.value = skills;
+    studentReviews.value = reviews;
+
+    // Update chart data based on skills
+    updateChartData(skills);
+  } catch (error) {
+    console.error("Error loading student data:", error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const updateChartData = (skills: any[]) => {
+  // Update chart data based on student skills
+  const skillLevels = skills.filter((skill) => skill.level > 0);
+
+  if (skillLevels.length > 0) {
+    data.labels = skillLevels.map((skill) => skill.name);
+    data.datasets[0].data = skillLevels.map((skill) => skill.level);
+  }
+};
 </script>
 
 <template>
   <div class="student-page">
-    <StudentForm v-if="student.number <= 0" />
+    <StudentForm
+      v-if="!currStudent"
+      @student-selected="handleStudentSelected"
+    />
 
-    <div v-if="student.number" class="fade-in">
+    <div v-if="currStudent" class="fade-in">
       <!-- Header -->
       <header class="student-header">
         <button @click="navigateTo('/')" class="back-button" aria-label="Terug">
@@ -86,17 +120,49 @@ watch(student, async () => {
             </div>
 
             <div class="comments-card">
-              <h3 class="section-title">Opmerkingen:</h3>
-              <div class="comments-container">
-                <div v-for="i in 10" :key="i" class="comment-item">
-                  <h4 class="comment-title">Test {{ i }}</h4>
+              <h3 class="section-title">Reviews van klanten:</h3>
+              <div v-if="loading" class="text-center py-4">
+                <div
+                  class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"
+                ></div>
+                <p class="mt-2 text-sm text-gray-600">
+                  Reviews aan het laden...
+                </p>
+              </div>
+              <div v-else class="comments-container">
+                <div
+                  v-for="review in studentReviews"
+                  :key="review.id"
+                  class="comment-item"
+                >
+                  <h4 class="comment-title">
+                    Review van {{ review.reviewerType }}
+                  </h4>
+                  <div class="rating-summary mb-2">
+                    <span
+                      v-for="(rating, category) in review.ratings"
+                      :key="category"
+                      class="rating-badge"
+                    >
+                      {{ category }}: {{ rating }}/5
+                    </span>
+                  </div>
                   <p class="comment-text">
-                    Lorem ipsum dolor sit amet consectetur adipisicing elit.
-                    Doloribus necessitatibus blanditiis quidem ducimus.
-                    Provident mollitia maiores animi, inventore, beatae odio
-                    totam, in voluptatum quae labore delectus vel eos cum
-                    possimus!
+                    {{ review.reviewText || "Geen opmerkingen" }}
                   </p>
+                  <p class="comment-date">
+                    {{
+                      new Date(review.submittedAt).toLocaleDateString("nl-NL")
+                    }}
+                  </p>
+                </div>
+
+                <!-- No reviews message -->
+                <div
+                  v-if="studentReviews.length === 0"
+                  class="text-center py-8"
+                >
+                  <p class="text-gray-600">Nog geen reviews ontvangen</p>
                 </div>
               </div>
             </div>

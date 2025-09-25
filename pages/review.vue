@@ -2,22 +2,17 @@
 import { ref, watch, computed, onMounted } from "vue";
 
 const route = useRoute();
+const {
+  fetchStudent,
+  submitReview: submitStudentReview,
+  fetchStudentReviews,
+} = useStudents();
 
-// Get student data from route params - make it reactive
-const selectedStudent = computed(() => {
-  const studentId = route.query.studentId;
-  const studentName = route.query.studentName;
-
-  // Ensure we have valid data
-  if (!studentId || !studentName) {
-    console.warn("Missing route parameters:", { studentId, studentName });
-  }
-
-  return {
-    id: studentId || "1",
-    name: studentName || "Unknown Student",
-  };
-});
+// Get student data from route params and fetch from database
+const selectedStudentId = computed(() => route.query.studentId);
+const selectedStudent = ref(null);
+const existingReviews = ref([]);
+const isLoadingStudent = ref(false);
 
 const showSuccessModal = ref(false);
 
@@ -30,23 +25,7 @@ const categories = [
   "Communiceren",
 ];
 
-// Function to get stored data for a student
-const getStudentData = (studentId) => {
-  if (process.client) {
-    const stored = localStorage.getItem(`student-review-${studentId}`);
-    return stored ? JSON.parse(stored) : null;
-  }
-  return null;
-};
-
-// Function to save student data
-const saveStudentData = (studentId, data) => {
-  if (process.client) {
-    localStorage.setItem(`student-review-${studentId}`, JSON.stringify(data));
-  }
-};
-
-// Create reactive ratings and review text that auto-load per student
+// Create reactive ratings and review text
 const ratings = ref({
   Presenteren: 0,
   Organiseren: 0,
@@ -57,16 +36,20 @@ const ratings = ref({
 
 const reviewText = ref("");
 
-// Function to load student data
-const loadStudentData = (studentId) => {
-  const storedData = getStudentData(studentId);
+// Function to load student data from database
+const loadStudentData = async (studentId) => {
+  if (!studentId) return;
 
-  if (storedData) {
-    // Load existing data for this student
-    ratings.value = { ...storedData.ratings };
-    reviewText.value = storedData.reviewText || "";
-  } else {
-    // Initialize with empty ratings for new student
+  isLoadingStudent.value = true;
+
+  try {
+    // Fetch student details
+    selectedStudent.value = await fetchStudent(studentId);
+
+    // Fetch existing reviews to check if already submitted
+    existingReviews.value = await fetchStudentReviews(Number(studentId));
+
+    // Reset form for new review
     ratings.value = {
       Presenteren: 0,
       Organiseren: 0,
@@ -75,20 +58,30 @@ const loadStudentData = (studentId) => {
       Communiceren: 0,
     };
     reviewText.value = "";
+  } catch (error) {
+    console.error("Error loading student data:", error);
+    selectedStudent.value = {
+      id: studentId,
+      name: "Unknown Student",
+      studentNumber: "Unknown",
+    };
+  } finally {
+    isLoadingStudent.value = false;
   }
 };
 
-// Load data when component mounts
+// Load data when component mounts or studentId changes
 onMounted(() => {
-  if (selectedStudent.value.id) {
-    loadStudentData(selectedStudent.value.id);
+  if (selectedStudentId.value) {
+    loadStudentData(selectedStudentId.value);
   }
 });
 
-// Check if this student's review has been submitted
+// Check if this student's review has been submitted (from database)
 const isReviewSubmitted = computed(() => {
-  const storedData = getStudentData(selectedStudent.value.id);
-  return storedData?.submitted || false;
+  return existingReviews.value.some(
+    (review) => review.reviewerType === "klant"
+  );
 });
 
 // Validation computed properties
@@ -117,7 +110,7 @@ const validationErrors = computed(() => {
 
 // Watch for route changes to reinitialize data if student changes
 watch(
-  () => route.query.studentId,
+  () => selectedStudentId.value,
   (newStudentId, oldStudentId) => {
     if (newStudentId !== oldStudentId && newStudentId) {
       // Load data for the new student
@@ -133,50 +126,39 @@ watch(
 // Function to set rating for a category
 const setRating = (category, rating) => {
   ratings.value[category] = rating;
-  // Save data immediately when rating changes
-  saveStudentData(selectedStudent.value.id, {
-    ratings: ratings.value,
-    reviewText: reviewText.value,
-    lastUpdated: new Date().toISOString(),
-  });
 };
 
-// Watch for changes in review text and save automatically
-watch(reviewText, (newText) => {
-  saveStudentData(selectedStudent.value.id, {
-    ratings: ratings.value,
-    reviewText: newText,
-    lastUpdated: new Date().toISOString(),
-  });
-});
-
 // Function to handle form submission
-const submitReview = () => {
+const submitReview = async () => {
   // Prevent submission if form is invalid or already submitted
-  if (!isFormValid.value || isReviewSubmitted.value) {
+  if (!isFormValid.value || isReviewSubmitted.value || !selectedStudent.value) {
     console.warn("Cannot submit: Form is invalid or already submitted");
     return;
   }
 
-  // Save final data with submission timestamp
-  const submissionData = {
-    ratings: ratings.value,
-    reviewText: reviewText.value,
-    submitted: true,
-    submittedAt: new Date().toISOString(),
-    lastUpdated: new Date().toISOString(),
-  };
+  try {
+    // Submit review to database
+    await submitStudentReview(selectedStudent.value.id, {
+      reviewerType: "klant",
+      reviewerId: "anonymous", // You could get this from user session
+      ratings: ratings.value,
+      reviewText: reviewText.value,
+    });
 
-  saveStudentData(selectedStudent.value.id, submissionData);
+    console.log("Review submitted successfully:", {
+      student: selectedStudent.value,
+      ratings: ratings.value,
+      comment: reviewText.value,
+    });
 
-  // Here you would typically send the data to an API
-  console.log("Review submitted:", {
-    student: selectedStudent.value,
-    ratings: ratings.value,
-    comment: reviewText.value,
-  });
+    showSuccessModal.value = true;
 
-  showSuccessModal.value = true;
+    // Refresh reviews to update submitted status
+    existingReviews.value = await fetchStudentReviews(selectedStudent.value.id);
+  } catch (error) {
+    console.error("Error submitting review:", error);
+    // You could show an error message to the user here
+  }
 };
 
 // Function to go back
