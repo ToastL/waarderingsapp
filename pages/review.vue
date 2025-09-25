@@ -201,112 +201,131 @@ const closeModal = () => {
 
     <!-- Main Content -->
     <div class="review-content">
-      <!-- Student Selection Display -->
-      <div class="student-info">
-        <span class="student-label">Student geselecteerd</span>
-        <span class="student-name">{{ selectedStudent.name }}</span>
+      <!-- Loading State -->
+      <div v-if="isLoadingStudent" class="loading-state">
+        <div
+          class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"
+        ></div>
+        <p class="text-center mt-2 text-gray-600">Student aan het laden...</p>
       </div>
 
-      <!-- Review Form -->
-      <div class="review-form">
-        <h2 class="form-question">
-          Wat was je ervaring met {{ selectedStudent.name }} ?
-        </h2>
+      <!-- Error State -->
+      <div v-else-if="!selectedStudent" class="error-state">
+        <p class="text-center text-red-600">Student niet gevonden</p>
+        <button @click="goBack" class="back-btn mt-4">
+          Terug naar studentenlijst
+        </button>
+      </div>
 
-        <!-- Submission Status Indicator -->
-        <div v-if="isReviewSubmitted" class="submission-status">
-          <span class="status-icon">✅</span>
-          <span class="status-text">Review reeds ingediend</span>
+      <!-- Student Found -->
+      <div v-else>
+        <!-- Student Selection Display -->
+        <div class="student-info">
+          <span class="student-label">Student geselecteerd</span>
+          <span class="student-name">{{ selectedStudent.name }}</span>
         </div>
 
-        <!-- Rating Categories -->
-        <div class="rating-categories">
-          <div
-            v-for="category in categories"
-            :key="category"
-            class="rating-row"
-          >
-            <label class="category-label">{{ category }}</label>
-            <div class="rating-circles">
-              <button
-                v-for="i in 5"
-                :key="i"
-                @click="setRating(category, i)"
-                :class="[
-                  'rating-circle',
-                  i <= ratings[category] ? 'filled' : 'empty',
-                ]"
-                :aria-label="`Rate ${category} ${i} out of 5`"
-              />
+        <!-- Review Form -->
+        <div class="review-form">
+          <h2 class="form-question">
+            Wat was je ervaring met {{ selectedStudent.name }} ?
+          </h2>
+
+          <!-- Submission Status Indicator -->
+          <div v-if="isReviewSubmitted" class="submission-status">
+            <span class="status-icon">✅</span>
+            <span class="status-text">Review reeds ingediend</span>
+          </div>
+
+          <!-- Rating Categories -->
+          <div class="rating-categories">
+            <div
+              v-for="category in categories"
+              :key="category"
+              class="rating-row"
+            >
+              <label class="category-label">{{ category }}</label>
+              <div class="rating-circles">
+                <button
+                  v-for="i in 5"
+                  :key="i"
+                  @click="setRating(category, i)"
+                  :class="[
+                    'rating-circle',
+                    i <= ratings[category] ? 'filled' : 'empty',
+                  ]"
+                  :aria-label="`Rate ${category} ${i} out of 5`"
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Comment Section -->
-        <div class="comment-section">
-          <label class="comment-label">Laat een berichtje achter</label>
-          <textarea
-            v-model="reviewText"
-            class="comment-textarea"
-            :class="{
-              'comment-textarea--error':
-                !isReviewTextValid && reviewText.length === 0,
-            }"
-            rows="6"
-            placeholder=""
-          />
-        </div>
-
-        <!-- Validation Errors -->
-        <div
-          v-if="validationErrors.length > 0 && !isReviewSubmitted"
-          class="validation-errors"
-        >
-          <div
-            v-for="error in validationErrors"
-            :key="error"
-            class="validation-error"
-          >
-            <span class="error-icon">⚠</span>
-            <span class="error-text">{{ error }}</span>
+          <!-- Comment Section -->
+          <div class="comment-section">
+            <label class="comment-label">Laat een berichtje achter</label>
+            <textarea
+              v-model="reviewText"
+              class="comment-textarea"
+              :class="{
+                'comment-textarea--error':
+                  !isReviewTextValid && reviewText.length === 0,
+              }"
+              rows="6"
+              placeholder=""
+            />
           </div>
-        </div>
 
-        <!-- Submit Button -->
-        <button
-          @click="submitReview"
-          :disabled="!isFormValid || isReviewSubmitted"
-          :class="[
-            'submit-button',
-            { 'submit-button--disabled': !isFormValid || isReviewSubmitted },
-          ]"
-          :title="
-            !isFormValid ? 'Vul alle velden in om te verzenden' : 'Verzenden'
-          "
-        >
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+          <!-- Validation Errors -->
+          <div
+            v-if="validationErrors.length > 0 && !isReviewSubmitted"
+            class="validation-errors"
           >
-            <path
-              d="M22 2L11 13"
-              stroke="white"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-            <path
-              d="M22 2L15 22L11 13L2 9L22 2Z"
-              stroke="white"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </button>
+            <div
+              v-for="error in validationErrors"
+              :key="error"
+              class="validation-error"
+            >
+              <span class="error-icon">⚠</span>
+              <span class="error-text">{{ error }}</span>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button
+            @click="submitReview"
+            :disabled="!isFormValid || isReviewSubmitted"
+            :class="[
+              'submit-button',
+              { 'submit-button--disabled': !isFormValid || isReviewSubmitted },
+            ]"
+            :title="
+              !isFormValid ? 'Vul alle velden in om te verzenden' : 'Verzenden'
+            "
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M22 2L11 13"
+                stroke="white"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M22 2L15 22L11 13L2 9L22 2Z"
+                stroke="white"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -379,6 +398,33 @@ const closeModal = () => {
 
 .review-content {
   padding: 24px 20px;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.error-state {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.back-btn {
+  background: rgba(255, 255, 255, 0.9);
+  color: #f97316;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  background: white;
+  transform: translateY(-1px);
 }
 
 .student-info {

@@ -1,4 +1,5 @@
 import { ref, computed } from "vue";
+import { session } from "~/assets/js/sessionKey";
 
 export interface Student {
   id: number;
@@ -41,14 +42,15 @@ export const useStudents = () => {
 
   // Get session key from the existing session utility
   const getSessionKey = () => {
-    // Use the existing session from sessionKey.ts
-    try {
-      // Import the session dynamically to avoid circular dependencies
-      const sessionModule = import("~/assets/js/sessionKey");
-      return "default-session-key"; // Fallback for now
-    } catch {
-      return "default-session-key";
+    // Ensure session key is set (only on client side)
+    if (typeof window !== "undefined") {
+      if (!session.key) {
+        session.setKey();
+      }
+      return session.key;
     }
+
+    return "default-session-key";
   };
 
   const fetchStudents = async (): Promise<Student[]> => {
